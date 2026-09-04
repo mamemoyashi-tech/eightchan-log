@@ -74,7 +74,7 @@ async function init(){
  state.vehicle=state.vehicle||{};state.entries=Array.isArray(state.entries)?state.entries:[];
  state.recurringRules=Array.isArray(state.recurringRules)?state.recurringRules:[];
  state.recurringSkips=Array.isArray(state.recurringSkips)?state.recurringSkips:[];
- $("headerYear").textContent=new Date().getFullYear()+" / EIGHT";
+ $("headerYear").textContent=new Date().getFullYear();
  fillCategories();
  $("entryDate").value=today();
  $("recurringStart").value=today().slice(0,7);$("recurringCategory").value="parking";
