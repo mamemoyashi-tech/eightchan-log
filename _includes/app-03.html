@@ -1,0 +1,78 @@
+details summary{cursor:pointer;font-weight:800;font-size:12px}
+#recordsList .card{padding-top:3px;padding-bottom:3px}
+.recurring-list{display:grid;gap:9px;margin-top:12px}
+.recurring-item{border:1px solid #2d2d31;background:#0a0a0c;border-radius:15px;padding:13px}
+.recurring-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.recurring-name{font-size:13px;font-weight:900}
+.recurring-meta{font-size:10px;color:#a1a1aa;line-height:1.65;margin-top:4px}
+.recurring-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.auto-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;border:1px solid #4b4b50;color:#d4d4d8;background:#1b1b1f;font-size:8px;font-weight:900;letter-spacing:.08em;vertical-align:1px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.1);margin-top:4px;flex:0 0 auto}
+.status-dot.off{background:#71717a;box-shadow:none}
+
+.entry-photo-wrap{display:grid;grid-template-columns:72px 1fr;gap:10px;align-items:center;margin-top:9px}
+.entry-photo-wrap img{width:72px;height:72px;object-fit:cover;border-radius:12px;border:1px solid #333}
+.hidden{display:none!important}
+
+@media(max-width:430px){
+  .hero{height:270px}.metric .value{font-size:21px}.bar-row{grid-template-columns:80px 1fr 72px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="logo" id="appLogo">愛車ログ</div>
+  <div class="year" id="headerYear"></div>
+</header>
+
+<main>
+<section id="home" class="view active">
+  <div id="heroCard" class="card hero hero-empty"></div>
+
+  <div class="grid">
+    <div class="card metric"><div class="label">YTD COST / 今年</div><div><div class="value" id="yearTotal">¥0</div><div class="sub" id="yearSub">今年の支出合計</div></div></div>
+    <div class="card metric"><div class="label">MONTHLY AVG / 月平均</div><div><div class="value" id="monthAvg">¥0</div><div class="sub">今年1月から現在まで</div></div></div>
+    <div class="card metric"><div class="label">TOTAL COST / 累計</div><div><div class="value" id="allTotal">¥0</div><div class="sub">登録済み全期間</div></div></div>
+    <div class="card metric"><div class="label">ODOMETER / 走行距離</div><div><div class="value" id="currentOdo">—</div><div class="sub">最新の記録</div></div></div>
+  </div>
+
+  <div class="section-title"><span>COST BREAKDOWN</span></div>
+  <div class="card"><div id="categoryBars" class="bars"></div></div>
+
+  <div class="section-title"><span>RECENT LOG</span><button class="btn secondary mini" onclick="showView('records')">すべて見る</button></div>
+  <div class="card" id="recentRecords"></div>
+</section>
+
+<section id="records" class="view">
+  <div class="section-title"><span>MAINTENANCE & COST LOG</span></div>
+  <div class="card">
+    <div class="filters">
+      <select id="filterCategory" onchange="renderRecords()"></select>
+      <input id="filterText" placeholder="メモ・店名を検索" oninput="renderRecords()">
+    </div>
+  </div>
+  <div id="recordsList"></div>
+</section>
+
+<section id="add" class="view">
+  <div class="section-title"><span id="entryFormTitle">NEW LOG</span></div>
+  <div class="card">
+    <input type="hidden" id="editId">
+    <div class="row">
+      <div><label>DATE / 日付</label><input type="date" id="entryDate"></div>
+      <div><label>CATEGORY / 費目</label><select id="entryCategory"></select></div>
+    </div>
+
+    <label>AMOUNT / 金額（円）</label>
+    <input type="number" id="entryAmount" inputmode="numeric" min="0" placeholder="例：6500">
+
+    <div class="row">
+      <div><label>ODOMETER / 走行距離 km</label><input type="number" id="entryOdo" inputmode="numeric" min="0" placeholder="例：48500"></div>
+      <div><label>SHOP / 支払先</label><input id="entryShop" placeholder="例：ディーラー"></div>
+    </div>
+
+    <label>NOTE / メモ</label>
+    <textarea id="entryMemo" placeholder="例：エンジンオイル 0W-20、フィルター同時交換"></textarea>
+
+    <label>PHOTO / 記録写真（任意）</label>
