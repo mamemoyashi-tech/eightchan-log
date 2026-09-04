@@ -1,0 +1,82 @@
+     state.entries.push({
+       id:uid(),date:due,category:r.category,amount:Number(r.amount)||0,odo:null,
+       shop:r.shop||"",memo:r.memo||r.name||"定例費",photo:"",
+       recurringRuleId:r.id,recurringPeriod:ym
+     });
+     made++;
+   }
+ }
+ return made;
+}
+function resetRecurringForm(){
+ $("recurringEditId").value="";$("recurringName").value="";$("recurringCategory").value="parking";
+ $("recurringAmount").value="";$("recurringDay").value="1";$("recurringStart").value=today().slice(0,7);
+ $("recurringEnd").value="";$("recurringShop").value="";$("recurringMemo").value="";
+ $("recurringSaveButton").textContent="ADD RECURRING COST";$("recurringCancelButton").classList.add("hidden");
+}
+async function saveRecurringRule(){
+ const name=$("recurringName").value.trim(),amount=Number($("recurringAmount").value),day=Number($("recurringDay").value),startMonth=$("recurringStart").value;
+ if(!name||!Number.isFinite(amount)||amount<0||!startMonth||day<1||day>31){toast("項目名・金額・計上日・開始月を確認してください");return}
+ const endMonth=$("recurringEnd").value;
+ if(endMonth&&monthIndex(endMonth)<monthIndex(startMonth)){toast("終了月は開始月以降にしてください");return}
+ const id=$("recurringEditId").value||uid(),old=state.recurringRules.find(r=>r.id===id);
+ const rule={id,name,category:$("recurringCategory").value,amount,day,startMonth,endMonth,shop:$("recurringShop").value.trim(),memo:$("recurringMemo").value.trim(),enabled:old?.enabled!==false};
+ const idx=state.recurringRules.findIndex(r=>r.id===id);if(idx>=0)state.recurringRules[idx]=rule;else state.recurringRules.push(rule);
+ const made=applyRecurringRules();await dbSet();renderAll();resetRecurringForm();toast(idx>=0?`定例費を更新しました${made?`・${made}件追加`:""}`:`定例費を登録しました${made?`・${made}件追加`:""}`);
+}
+function renderRecurringRules(){
+ if(!$("recurringList"))return;
+ const arr=state.recurringRules||[];
+ $("recurringList").innerHTML=arr.length?arr.map(r=>{
+   const c=CATEGORIES[r.category]||["•",r.category],range=`${r.startMonth}${r.endMonth?` ～ ${r.endMonth}`:" ～"}`;
+   return `<div class="recurring-item"><div class="recurring-head"><div><div class="recurring-name">${esc(r.name)}</div><div class="recurring-meta">${c[0]} ${esc(c[1])} ・ ${yen(r.amount)} / 月 ・ 毎月${r.day}日<br>${esc(range)}${r.shop?` ・ ${esc(r.shop)}`:""}</div></div><span class="status-dot ${r.enabled===false?"off":""}"></span></div><div class="recurring-actions"><button class="btn secondary mini" onclick="editRecurringRule('${r.id}')">EDIT</button><button class="btn secondary mini" onclick="toggleRecurringRule('${r.id}')">${r.enabled===false?"再開":"一時停止"}</button><button class="btn ghost mini" onclick="deleteRecurringRule('${r.id}')">DELETE</button></div></div>`;
+ }).join(""):`<div class="empty">保険料、駐車場代などの固定費を登録できます。</div>`;
+}
+function editRecurringRule(id){
+ const r=state.recurringRules.find(x=>x.id===id);if(!r)return;
+ $("recurringEditId").value=r.id;$("recurringName").value=r.name;$("recurringCategory").value=r.category;$("recurringAmount").value=r.amount;
+ $("recurringDay").value=r.day;$("recurringStart").value=r.startMonth;$("recurringEnd").value=r.endMonth||"";$("recurringShop").value=r.shop||"";$("recurringMemo").value=r.memo||"";
+ $("recurringSaveButton").textContent="UPDATE RECURRING COST";$("recurringCancelButton").classList.remove("hidden");window.scrollTo({top:0,behavior:"smooth"});
+}
+async function toggleRecurringRule(id){
+ const r=state.recurringRules.find(x=>x.id===id);if(!r)return;r.enabled=r.enabled===false;const made=r.enabled?applyRecurringRules():0;await dbSet();renderAll();toast(r.enabled?`再開しました${made?`・${made}件追加`:""}`:"一時停止しました");
+}
+async function deleteRecurringRule(id){
+ const r=state.recurringRules.find(x=>x.id===id);if(!r||!confirm(`「${r.name}」の自動入力設定を削除しますか？\nすでに記録された過去のLOGは残ります。`))return;
+ state.recurringRules=state.recurringRules.filter(x=>x.id!==id);await dbSet();renderAll();resetRecurringForm();toast("定例費設定を削除しました");
+}
+
+function loadVehicleForm(){
+ const v=state.vehicle||{};
+ $("carName").value=v.name||"";$("carMaker").value=v.maker||"";$("carModel").value=v.model||"";
+ $("carYear").value=v.year||"";$("carOdo").value=v.odo||"";$("carPlate").value=v.plate||"";$("carMemo").value=v.memo||"";
+ if(v.photo){$("carPreview").src=v.photo;$("carPreview").classList.remove("hidden");$("photoPlaceholder").classList.add("hidden")}
+ else{$("carPreview").classList.add("hidden");$("photoPlaceholder").classList.remove("hidden")}
+}
+async function handleCarPhoto(e){
+ const f=e.target.files[0];if(!f)return;
+ pendingCarPhoto=await resizeImage(f,1600,.86);
+ $("carPreview").src=pendingCarPhoto;$("carPreview").classList.remove("hidden");$("photoPlaceholder").classList.add("hidden");
+ toast("愛車写真を選択しました");
+}
+async function handleEntryPhoto(e){
+ const f=e.target.files[0];if(!f)return;
+ pendingEntryPhoto=await resizeImage(f,1200,.82);
+ $("entryPhotoPreview").src=pendingEntryPhoto;$("entryPhotoPreview").classList.remove("hidden");toast("写真を添付しました");
+}
+function resizeImage(file,max,q){
+ return new Promise((resolve,reject)=>{
+  const reader=new FileReader();
+  reader.onload=()=>{
+   const img=new Image();
+   img.onload=()=>{
+    let w=img.width,h=img.height;
+    if(Math.max(w,h)>max){const s=max/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s)}
+    const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(img,0,0,w,h);
+    resolve(c.toDataURL("image/jpeg",q));
+   };
+   img.onerror=reject;img.src=reader.result;
+  };
+  reader.onerror=reject;reader.readAsDataURL(file);
+ });
+}
