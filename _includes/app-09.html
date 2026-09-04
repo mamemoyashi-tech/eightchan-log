@@ -1,0 +1,44 @@
+async function saveVehicle(){
+ const old=state.vehicle||{};
+ state.vehicle={
+   name:$("carName").value.trim(),maker:$("carMaker").value.trim(),model:$("carModel").value.trim(),
+   year:Number($("carYear").value)||"",odo:Number($("carOdo").value)||"",
+   plate:$("carPlate").value.trim(),memo:$("carMemo").value.trim(),
+   photo:pendingCarPhoto ?? old.photo ?? ""
+ };
+ pendingCarPhoto=null;await dbSet();renderAll();toast("愛車を保存しました");showView("home");
+}
+function downloadBlob(blob,name){
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+ setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
+}
+function exportJSON(){
+ downloadBlob(new Blob([JSON.stringify(state,null,2)],{type:"application/json"}),`eight_chan_log_backup_${today()}.json`);
+}
+function exportCSV(){
+ const header=["日付","費目","金額","走行距離km","店名・支払先","メモ"];
+ const rows=[...state.entries].sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(e=>[
+   e.date,CATEGORIES[e.category]?.[1]||e.category,e.amount,e.odo||"",e.shop||"",e.memo||""
+ ]);
+ const quote=v=>`"${String(v??"").replaceAll('"','""')}"`;
+ const csv="\uFEFF"+[header,...rows].map(r=>r.map(quote).join(",")).join("\r\n");
+ downloadBlob(new Blob([csv],{type:"text/csv;charset=utf-8"}),`eight_chan_log_${today()}.csv`);
+}
+async function importJSON(e){
+ const f=e.target.files[0];if(!f)return;
+ try{
+   const data=JSON.parse(await f.text());
+   if(!data || !Array.isArray(data.entries) || typeof data.vehicle!=="object")throw new Error();
+   state=data;state.recurringRules=Array.isArray(state.recurringRules)?state.recurringRules:[];state.recurringSkips=Array.isArray(state.recurringSkips)?state.recurringSkips:[];
+   const made=applyRecurringRules();await dbSet();renderAll();toast(`バックアップを読み込みました${made?`・定例費${made}件追加`:""}`);showView("home");
+ }catch{alert("このJSONファイルは読み込めませんでした。");}
+ e.target.value="";
+}
+async function clearAllData(){
+ if(!confirm("愛車情報と全記録を削除します。元に戻せません。よろしいですか？"))return;
+ state={vehicle:{},entries:[],recurringRules:[],recurringSkips:[]};await dbSet();pendingCarPhoto=null;pendingEntryPhoto=null;renderAll();toast("初期化しました");showView("home");
+}
+init();
+</script>
+</body>
+</html>
