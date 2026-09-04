@@ -1,0 +1,80 @@
+    <div class="entry-photo-wrap">
+      <img id="entryPhotoPreview" class="hidden" alt="記録写真">
+      <div>
+        <label class="btn secondary" style="display:inline-block;margin:0">写真を選ぶ<input type="file" id="entryPhoto" accept="image/*" style="display:none"></label>
+        <div class="note" style="margin-top:7px">整備箇所、レシート、洗車後などを添付できます。</div>
+      </div>
+    </div>
+
+    <div style="height:16px"></div>
+    <button class="btn wide" onclick="saveEntry()">SAVE LOG</button>
+    <button id="cancelEdit" class="btn secondary wide hidden" style="margin-top:8px" onclick="resetEntryForm();showView('records')">編集をキャンセル</button>
+  </div>
+</section>
+
+<section id="car" class="view">
+  <div class="section-title"><span>MY CAR</span></div>
+  <div class="card">
+    <div class="photo-picker">
+      <img id="carPreview" class="hidden" alt="愛車写真">
+      <div id="photoPlaceholder" class="photo-placeholder">
+        <div class="mark">▰</div><b>愛車の写真を登録</b>
+        <div class="note">この写真がホーム画面のメインビジュアルになります。</div>
+      </div>
+      <label class="btn secondary" style="display:inline-block;margin:4px 0 0">写真を選ぶ<input type="file" id="carPhoto" accept="image/*" style="display:none"></label>
+    </div>
+
+    <label>NAME / 愛車の呼び名</label><input id="carName" placeholder="例：RX-8">
+    <div class="row">
+      <div><label>MAKE / メーカー</label><input id="carMaker" placeholder="例：MAZDA"></div>
+      <div><label>MODEL / 車種</label><input id="carModel" placeholder="例：RX-8 Type S"></div>
+    </div>
+    <div class="row">
+      <div><label>YEAR / 年式</label><input id="carYear" type="number" inputmode="numeric" placeholder="例：2008"></div>
+      <div><label>ODOMETER / km</label><input id="carOdo" type="number" inputmode="numeric" min="0" placeholder="例：48500"></div>
+    </div>
+    <label>PLATE / ナンバー（任意）</label><input id="carPlate" placeholder="例：品川 300 ・・・">
+    <label>MEMO / 車両メモ</label><textarea id="carMemo" placeholder="グレード、色、購入日、タイヤ銘柄など"></textarea>
+    <div style="height:16px"></div>
+    <button class="btn wide" onclick="saveVehicle()">SAVE CAR PROFILE</button>
+  </div>
+</section>
+
+<section id="settings" class="view">
+  <div class="section-title"><span>RECURRING COSTS</span><span class="plain">定例費</span></div>
+  <div class="card">
+    <input type="hidden" id="recurringEditId">
+    <b style="font-size:12px">毎月の固定費を自動記録</b>
+    <p class="note">アプリを開いた時、その月の計上日を迎えていれば自動でLOGへ追加します。開始月を過去にすると、未登録の月も重複なく補完します。</p>
+    <label>NAME / 項目名</label><input id="recurringName" placeholder="例：月極駐車場">
+    <div class="row">
+      <div><label>CATEGORY / 費目</label><select id="recurringCategory"></select></div>
+      <div><label>AMOUNT / 月額（円）</label><input type="number" id="recurringAmount" inputmode="numeric" min="0" placeholder="例：30000"></div>
+    </div>
+    <div class="row">
+      <div><label>DAY / 毎月の計上日</label><input type="number" id="recurringDay" inputmode="numeric" min="1" max="31" value="1"></div>
+      <div><label>START / 開始月</label><input type="month" id="recurringStart"></div>
+    </div>
+    <label>END / 終了月（任意）</label><input type="month" id="recurringEnd">
+    <div class="row">
+      <div><label>SHOP / 支払先</label><input id="recurringShop" placeholder="例：○○駐車場"></div>
+      <div><label>MEMO / メモ</label><input id="recurringMemo" placeholder="例：月額固定費"></div>
+    </div>
+    <div style="height:14px"></div>
+    <button id="recurringSaveButton" class="btn wide" onclick="saveRecurringRule()">ADD RECURRING COST</button>
+    <button id="recurringCancelButton" class="btn secondary wide hidden" style="margin-top:8px" onclick="resetRecurringForm()">編集をキャンセル</button>
+    <div id="recurringList" class="recurring-list"></div>
+  </div>
+
+  <div class="section-title"><span>DATA & BACKUP</span></div>
+  <div class="card">
+    <b style="font-size:12px">バックアップ</b>
+    <p class="note">愛車プロフィール、写真、全記録を1つのJSONファイルとして保存します。</p>
+    <div class="row">
+      <button class="btn secondary" onclick="exportJSON()">JSON保存</button>
+      <label class="btn secondary" style="text-align:center;margin:0">JSON読込<input id="importFile" type="file" accept=".json,application/json" style="display:none"></label>
+    </div>
+    <hr>
+    <b style="font-size:12px">表計算ソフトへ</b>
+    <p class="note">維持費・整備記録をCSVとして書き出します。</p>
+    <button class="btn secondary wide" onclick="exportCSV()">CSVを書き出す</button>
