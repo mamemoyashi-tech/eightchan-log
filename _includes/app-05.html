@@ -1,0 +1,82 @@
+    <hr>
+    <details>
+      <summary>すべてのデータを削除</summary>
+      <p class="note">この端末に保存された愛車情報と履歴を初期化します。</p>
+      <button class="btn danger" onclick="clearAllData()">データを初期化</button>
+    </details>
+  </div>
+
+  <div class="card">
+    <b style="font-size:12px">LOCAL FIRST</b>
+    <p class="note">試作版はログイン不要です。データはサーバーに送信せず、このブラウザのIndexedDBへ保存します。ブラウザデータを消去すると失われるため、JSONバックアップを推奨します。</p>
+  </div>
+</section>
+</main>
+
+<nav class="tabs">
+  <button class="tab active" data-view="home" onclick="showView('home')"><span>⌂</span>HOME</button>
+  <button class="tab" data-view="records" onclick="showView('records')"><span>☷</span>LOG</button>
+  <div class="center-tab"><button class="fab" onclick="openNewEntry()">＋</button></div>
+  <button class="tab" data-view="car" onclick="showView('car')"><span>◇</span>CAR</button>
+  <button class="tab" data-view="settings" onclick="showView('settings')"><span>⚙</span>DATA</button>
+</nav>
+<div id="toast" class="toast"></div>
+</div>
+
+<script>
+const CATEGORIES={
+ fuel:["⛽","燃料"],
+ maintenance:["⌁","整備"],
+ repair:["◆","修理"],
+ inspection:["▤","車検"],
+ tax:["§","税金"],
+ insurance:["◈","保険"],
+ parking:["P","駐車場"],
+ toll:["↝","高速・有料道路"],
+ wash:["✦","洗車・用品"],
+ custom:["＋","カスタム"],
+ other:["•","その他"]
+};
+let state={vehicle:{},entries:[],recurringRules:[],recurringSkips:[]};
+let pendingCarPhoto=null,pendingEntryPhoto=null;
+const $=id=>document.getElementById(id);
+const yen=n=>new Intl.NumberFormat("ja-JP",{style:"currency",currency:"JPY",maximumFractionDigits:0}).format(Number(n||0));
+const num=n=>new Intl.NumberFormat("ja-JP").format(Number(n||0));
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+
+function dbOpen(){
+ return new Promise((resolve,reject)=>{
+  const req=indexedDB.open("garage_log_db",1);
+  req.onupgradeneeded=e=>e.target.result.createObjectStore("store");
+  req.onsuccess=()=>resolve(req.result);
+  req.onerror=()=>reject(req.error);
+ });
+}
+async function dbGet(){
+ const db=await dbOpen();
+ return new Promise(resolve=>{
+  const req=db.transaction("store","readonly").objectStore("store").get("state");
+  req.onsuccess=()=>resolve(req.result);req.onerror=()=>resolve(null);
+ });
+}
+async function dbSet(){
+ const db=await dbOpen();
+ return new Promise((resolve,reject)=>{
+  const req=db.transaction("store","readwrite").objectStore("store").put(state,"state");
+  req.onsuccess=()=>resolve();req.onerror=()=>reject(req.error);
+ });
+}
+
+async function init(){
+ const saved=await dbGet(); if(saved)state=saved;
+ state.vehicle=state.vehicle||{};state.entries=Array.isArray(state.entries)?state.entries:[];
+ state.recurringRules=Array.isArray(state.recurringRules)?state.recurringRules:[];
+ state.recurringSkips=Array.isArray(state.recurringSkips)?state.recurringSkips:[];
+ $("headerYear").textContent=new Date().getFullYear()+" / EIGHT";
+ fillCategories();
+ $("entryDate").value=today();
+ $("recurringStart").value=today().slice(0,7);$("recurringCategory").value="parking";
+ $("carPhoto").addEventListener("change",handleCarPhoto);
+ $("entryPhoto").addEventListener("change",handleEntryPhoto);
