@@ -1,0 +1,78 @@
+ $("importFile").addEventListener("change",importJSON);
+ const generated=applyRecurringRules();
+ if(generated)await dbSet();
+ loadVehicleForm();renderAll();
+ if(generated)toast(`${generated}件の定例費を自動記録しました`);
+ if("serviceWorker" in navigator && location.protocol.startsWith("http")){
+   navigator.serviceWorker.register("./sw.js").catch(()=>{});
+ }
+}
+function fillCategories(){
+ const options=Object.entries(CATEGORIES).map(([k,v])=>`<option value="${k}">${v[0]} ${v[1]}</option>`).join("");
+ $("entryCategory").innerHTML=options;$("recurringCategory").innerHTML=options;
+ $("filterCategory").innerHTML='<option value="">すべての費目</option>'+Object.entries(CATEGORIES).map(([k,v])=>`<option value="${k}">${v[1]}</option>`).join("");
+}
+function showView(id){
+ document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));
+ document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.view===id));
+ if(id==="records")renderRecords();
+ if(id==="home")renderHome();
+ if(id==="settings")renderRecurringRules();
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+function toast(msg){
+ const t=$("toast");t.textContent=msg;t.classList.add("show");
+ clearTimeout(window._toast);window._toast=setTimeout(()=>t.classList.remove("show"),1700);
+}
+function getLatestOdo(){
+ const values=state.entries.map(e=>Number(e.odo||0)).filter(v=>v>0);
+ const own=Number(state.vehicle?.odo||0); if(own>0)values.push(own);
+ return values.length?Math.max(...values):null;
+}
+function appDisplayName(){
+ const name=String(state.vehicle?.name||"").trim();
+ if(!name)return "愛車ログ";
+ return /(?:ログ|LOG)$/i.test(name)?name:`${name}ログ`;
+}
+function renderBrand(){
+ const name=appDisplayName();
+ $("appLogo").textContent=name;
+ document.title=`${name} | 愛車維持費ログ`;
+}
+function renderAll(){renderBrand();renderHome();renderRecords();loadVehicleForm();renderRecurringRules()}
+function renderHero(){
+ const v=state.vehicle||{}, hero=$("heroCard");
+ const title=v.name||v.model||"MY CAR";
+ const sub=[v.maker,v.model,v.year?`${v.year} MODEL`:""].filter(Boolean).join("  /  ");
+ if(v.photo){
+   hero.className="card hero";
+   hero.innerHTML=`<img src="${v.photo}" alt="愛車"><div class="hero-copy"><div class="hero-kicker">MY GARAGE</div><h1>${esc(title)}</h1><p>${esc(sub||"CAR PROFILE")}</p></div>`;
+ }else{
+   hero.className="card hero hero-empty";
+   hero.innerHTML=`<div style="position:relative;z-index:2"><div class="mark">▰</div><div class="hero-kicker">MY GARAGE</div><h1 style="margin:6px 0">${esc(title)}</h1><p style="color:#a1a1aa;margin:0">${v.name||v.model?"愛車写真を追加できます":"CARタブから愛車を登録"}</p></div>`;
+ }
+}
+function renderHome(){
+ renderHero();
+ const now=new Date(), y=now.getFullYear(), m=now.getMonth()+1;
+ const pastOrToday=e=>!e.date || new Date(e.date+"T23:59:59")<=new Date();
+ const yearEntries=state.entries.filter(e=>String(e.date||"").startsWith(y+"-")&&pastOrToday(e));
+ const allEntries=state.entries.filter(pastOrToday);
+ const yTotal=yearEntries.reduce((s,e)=>s+Number(e.amount||0),0);
+ const total=allEntries.reduce((s,e)=>s+Number(e.amount||0),0);
+ $("yearTotal").textContent=yen(yTotal);
+ $("monthAvg").textContent=yen(yTotal/m);
+ $("allTotal").textContent=yen(total);
+ const odo=getLatestOdo();$("currentOdo").textContent=odo?num(odo)+" km":"—";
+
+ const sums={};yearEntries.forEach(e=>sums[e.category]=(sums[e.category]||0)+Number(e.amount||0));
+ const sorted=Object.entries(sums).sort((a,b)=>b[1]-a[1]);
+ $("categoryBars").innerHTML=sorted.length?sorted.map(([k,a])=>{
+   const c=CATEGORIES[k]||["•",k], pct=Math.max(3,a/(sorted[0][1]||1)*100);
+   return `<div class="bar-row"><div class="bar-name">${c[0]} ${esc(c[1])}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div class="bar-amount">${yen(a)}</div></div>`;
+ }).join(""):`<div class="empty">今年の記録はまだありません。<br>中央の＋から最初の費用を追加できます。</div>`;
+
+ const recent=[...state.entries].sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,5);
+ $("recentRecords").innerHTML=recent.length?recent.map(e=>recordHTML(e,false)).join(""):`<div class="empty">維持費・整備履歴をここに表示します。</div>`;
+}
+function recordHTML(e,actions){
