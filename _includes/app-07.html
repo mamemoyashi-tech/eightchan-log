@@ -1,0 +1,80 @@
+ const c=CATEGORIES[e.category]||["•",e.category||"その他"];
+ const meta=[e.date,e.odo?`${num(e.odo)} km`:"",e.memo].filter(Boolean).join("  /  ");
+ return `<div class="record">
+   <div class="icon">${c[0]}</div>
+   <div>
+     <div class="record-title">${esc(c[1])}${e.shop?` <span style="color:#71717a">·</span> ${esc(e.shop)}`:""}${e.recurringRuleId?`<span class="auto-badge">AUTO</span>`:""}</div>
+     <div class="record-meta">${esc(meta)}</div>
+     ${e.photo?`<img class="record-thumb" src="${e.photo}" alt="記録写真">`:""}
+     ${actions?`<div class="actions"><button onclick="editEntry('${e.id}')">EDIT</button><button onclick="deleteEntry('${e.id}')">DELETE</button></div>`:""}
+   </div>
+   <div class="amount">${yen(e.amount)}</div>
+ </div>`;
+}
+function renderRecords(){
+ const cat=$("filterCategory").value||"", q=($("filterText").value||"").trim().toLowerCase();
+ let arr=[...state.entries].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+ if(cat)arr=arr.filter(e=>e.category===cat);
+ if(q)arr=arr.filter(e=>[e.shop,e.memo,e.date,CATEGORIES[e.category]?.[1]].join(" ").toLowerCase().includes(q));
+ $("recordsList").innerHTML=arr.length?`<div class="card">${arr.map(e=>recordHTML(e,true)).join("")}</div>`:`<div class="card empty">該当する記録がありません。</div>`;
+}
+function openNewEntry(){resetEntryForm();showView("add")}
+function resetEntryForm(){
+ $("editId").value="";$("entryFormTitle").textContent="NEW LOG";$("entryDate").value=today();$("entryCategory").value="fuel";
+ $("entryAmount").value="";$("entryOdo").value=getLatestOdo()||"";$("entryShop").value="";$("entryMemo").value="";
+ pendingEntryPhoto=null;$("entryPhoto").value="";$("entryPhotoPreview").src="";$("entryPhotoPreview").classList.add("hidden");
+ $("cancelEdit").classList.add("hidden");
+}
+async function saveEntry(){
+ const amount=Number($("entryAmount").value);
+ if(!$("entryDate").value || !Number.isFinite(amount) || amount<0){toast("日付と金額を確認してください");return}
+ const id=$("editId").value||uid();
+ const existing=state.entries.find(e=>e.id===id);
+ const data={
+   id,date:$("entryDate").value,category:$("entryCategory").value,amount,
+   odo:Number($("entryOdo").value)||null,shop:$("entryShop").value.trim(),
+   memo:$("entryMemo").value.trim(),photo:pendingEntryPhoto ?? existing?.photo ?? "",
+   recurringRuleId:existing?.recurringRuleId||null,recurringPeriod:existing?.recurringPeriod||null
+ };
+ const idx=state.entries.findIndex(e=>e.id===id);
+ if(idx>=0)state.entries[idx]=data;else state.entries.push(data);
+ if(data.odo && data.odo>Number(state.vehicle?.odo||0))state.vehicle.odo=data.odo;
+ await dbSet();renderAll();toast(idx>=0?"更新しました":"記録しました");resetEntryForm();showView("home");
+}
+function editEntry(id){
+ const e=state.entries.find(x=>x.id===id);if(!e)return;
+ $("editId").value=e.id;$("entryFormTitle").textContent="EDIT LOG";$("entryDate").value=e.date;$("entryCategory").value=e.category;
+ $("entryAmount").value=e.amount;$("entryOdo").value=e.odo||"";$("entryShop").value=e.shop||"";$("entryMemo").value=e.memo||"";
+ pendingEntryPhoto=null;
+ if(e.photo){$("entryPhotoPreview").src=e.photo;$("entryPhotoPreview").classList.remove("hidden")}else $("entryPhotoPreview").classList.add("hidden");
+ $("cancelEdit").classList.remove("hidden");showView("add");
+}
+async function deleteEntry(id){
+ const target=state.entries.find(e=>e.id===id);
+ if(!confirm("この記録を削除しますか？"))return;
+ if(target?.recurringRuleId&&target?.recurringPeriod){
+   const key=`${target.recurringRuleId}:${target.recurringPeriod}`;
+   if(!state.recurringSkips.includes(key))state.recurringSkips.push(key);
+ }
+ state.entries=state.entries.filter(e=>e.id!==id);await dbSet();renderAll();toast("削除しました");
+}
+function monthIndex(ym){
+ const [y,m]=String(ym||"").split("-").map(Number);return y*12+(m-1);
+}
+function ymFromIndex(i){return `${Math.floor(i/12)}-${String(i%12+1).padStart(2,"0")}`}
+function dueDateForMonth(ym,day){
+ const [y,m]=ym.split("-").map(Number),last=new Date(y,m,0).getDate(),d=Math.min(Math.max(Number(day)||1,1),last);
+ return `${ym}-${String(d).padStart(2,"0")}`;
+}
+function applyRecurringRules(){
+ const current=today(),currentYm=current.slice(0,7);let made=0;
+ for(const r of state.recurringRules){
+   if(r.enabled===false||!r.startMonth)continue;
+   const start=monthIndex(r.startMonth),end=Math.min(monthIndex(r.endMonth||currentYm),monthIndex(currentYm));
+   if(!Number.isFinite(start)||!Number.isFinite(end)||end<start)continue;
+   for(let i=start;i<=end;i++){
+     const ym=ymFromIndex(i),due=dueDateForMonth(ym,r.day);
+     if(due>current)continue;
+     const skipKey=`${r.id}:${ym}`;
+     if(state.recurringSkips.includes(skipKey))continue;
+     if(state.entries.some(e=>e.recurringRuleId===r.id&&e.recurringPeriod===ym))continue;
