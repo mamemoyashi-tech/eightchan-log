@@ -1,6 +1,6 @@
 {
-  "name": "エイトちゃんLOG - 愛車維持費ログ",
-  "short_name": "エイトちゃんLOG",
+  "name": "愛車ログ - 愛車維持費ログ",
+  "short_name": "愛車ログ",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#050505",
